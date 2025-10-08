@@ -1,0 +1,7 @@
+import { DB } from "https://deno.land/x/sqlite/mod.ts";
+
+const db = new DB("2ahwii.db");
+
+db.query("INSERT INTO schueler (id, name, birthdate) VALUES (?, ?, ?)", [1, "Max Mustermann", "2001-09-11"]);
+
+db.close();
