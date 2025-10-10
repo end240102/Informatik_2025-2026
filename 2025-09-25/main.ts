@@ -1,8 +1,6 @@
-export function add(a: number, b: number): number {
-  return a + b;
-}
+import { DatabaseSync } from "node:sqlite";
 
-// Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
-if (import.meta.main) {
-  console.log("Add 2 + 3 =", add(2, 3));
-}
+const db = new DatabaseSync("klasse.db");
+const stmt = db.prepare("SELECT * FROM students");
+const rows = stmt.all();
+console.log(rows);
