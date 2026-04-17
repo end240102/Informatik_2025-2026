@@ -1,0 +1,66 @@
+erdiagram Bibliothek
+
+notation=default
+
+entity LESER {
+    id key
+    name
+    email
+    mitglied_seit
+}
+
+entity MITARBEITER {
+    id key
+    name
+    taetigkeit
+}
+
+entity BUCH {
+    id key
+    titel
+    autor
+    verlag
+    isbn
+    erscheinungsjahr
+}
+
+entity EXEMPLAR {
+    id key
+    standort
+    status
+}
+
+entity AUSLEIHE {
+    leser_id key
+    buch_id key
+    exemplar_id key
+    ausleih_datum key
+    rueckgabe_datum
+    anzahl_tage
+    mitarbeiter_ausleihe
+    mitarbeiter_retoure
+}
+
+relationship leiht_leser {
+    LESER -> AUSLEIHE
+}
+
+relationship leiht_buch {
+    AUSLEIHE -> BUCH
+}
+
+relationship leiht_exemplar {
+    AUSLEIHE -> EXEMPLAR
+}
+
+relationship hat_exemplar {
+    BUCH -> EXEMPLAR
+}
+
+relationship ausleihe_vorgang {
+    MITARBEITER -> AUSLEIHE
+}
+
+relationship retoure_vorgang {
+    MITARBEITER -> AUSLEIHE
+}

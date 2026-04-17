@@ -20,7 +20,9 @@
 -- ============================================================================
 
 -- HINWEIS: Lösche existierende Tabellen am Anfang (falls vorhanden)
+DROP TABLE IF EXISTS mitarbeiter;
 DROP TABLE IF EXISTS ausleihe;
+DROP TABLE IF EXISTS exemplar;
 DROP TABLE IF EXISTS buch;
 DROP TABLE IF EXISTS leser;
 
@@ -35,10 +37,25 @@ DROP TABLE IF EXISTS leser;
 --
 -- DEIN CODE HIER:
 CREATE TABLE leser(
-    id INTEGER AUTOINCREMENT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     mitglied_seit TEXT NOT NULL
+);
+
+-- ============================================================================
+-- AUFGABE 1b: MITARBEITER-TABELLE (Zusatzaufgabe)
+-- ============================================================================
+-- Erstelle die Tabelle "mitarbeiter" mit folgenden Anforderungen:
+--   - id: INTEGER, PRIMARY KEY, AUTOINCREMENT
+--   - name: TEXT, NOT NULL
+--   - taetigkeit: TEXT, NOT NULL (z.B. 'leiht aus', 'nimmt zurück')
+--
+-- DEIN CODE HIER:
+CREATE TABLE mitarbeiter(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    taetigkeit TEXT NOT NULL
 );
 
 -- ============================================================================
@@ -56,9 +73,35 @@ CREATE TABLE buch(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     titel TEXT NOT NULL,
     autor TEXT NOT NULL,
+    verlag TEXT,
     isbn TEXT UNIQUE,
     erscheinungsjahr INTEGER
-)
+);
+
+-- ============================================================================
+-- AUFGABE 2b: EXEMPLAR-TABELLE (Bonusaufgabe)
+-- ============================================================================
+-- Erstelle die Tabelle "exemplar" mit folgenden Anforderungen:
+--   - id: INTEGER, PRIMARY KEY, AUTOINCREMENT
+--   - buch_id: INTEGER, NOT NULL, FOREIGN KEY → buch(id)
+--   - standort: TEXT (z.B. 'Regal A3', 'Freihandbereich')
+--   - status: TEXT, NOT NULL, CHECK (verfuegbar, ausgeliehen, reserviert)
+--
+-- DEIN CODE HIER:
+CREATE TABLE exemplar(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    buch_id INTEGER NOT NULL,
+    standort TEXT,
+    status TEXT NOT NULL DEFAULT 'verfuegbar',
+    
+    CONSTRAINT fk_exemplar_buch
+        FOREIGN KEY (buch_id)
+        REFERENCES buch(id)
+        ON DELETE CASCADE,
+    
+    CONSTRAINT chk_status
+        CHECK (status IN ('verfuegbar', 'ausgeliehen', 'reserviert'))
+);
 
 -- ============================================================================
 -- AUFGABE 3: AUSLEIHE-ZWISCHENTABELLE (20 Punkte, ca. 20 Min.)
@@ -92,9 +135,12 @@ CREATE TABLE buch(
 CREATE TABLE ausleihe(
     leser_id INTEGER NOT NULL,
     buch_id INTEGER NOT NULL,
+    exemplar_id INTEGER,
     ausleih_datum TEXT NOT NULL,
     rueckgabe_datum TEXT,
     anzahl_tage INTEGER NOT NULL,
+    mitarbeiter_ausleihe INTEGER NOT NULL,
+    mitarbeiter_retoure INTEGER,
     
     PRIMARY KEY (leser_id, buch_id, ausleih_datum),
     
@@ -108,6 +154,24 @@ CREATE TABLE ausleihe(
         FOREIGN KEY (buch_id)
         REFERENCES buch(id)
         ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    
+    CONSTRAINT fk_exemplar
+        FOREIGN KEY (exemplar_id)
+        REFERENCES exemplar(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    
+    CONSTRAINT fk_mitarbeiter_ausleihe
+        FOREIGN KEY (mitarbeiter_ausleihe)
+        REFERENCES mitarbeiter(id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE,
+    
+    CONSTRAINT fk_mitarbeiter_retoure
+        FOREIGN KEY (mitarbeiter_retoure)
+        REFERENCES mitarbeiter(id)
+        ON DELETE SET NULL
         ON UPDATE CASCADE,
     
     CONSTRAINT chk_anzahl_tage
@@ -129,7 +193,7 @@ CREATE TABLE ausleihe(
 -- DEIN CODE HIER:
 CREATE INDEX idx_leser_name ON leser(name);
 
-CREATE INDEX idx_buch_title ON buch(title);
+CREATE INDEX idx_buch_titel ON buch(titel);
 
 CREATE INDEX idx_ausleihe_rueckgabe_null ON ausleihe(rueckgabe_datum);
 
@@ -144,17 +208,24 @@ CREATE INDEX idx_ausleihe_rueckgabe_null ON ausleihe(rueckgabe_datum);
 --   3, 'Peter Schmidt', 'peter@email.de', '2024-01-10'
 --
 -- BÜCHER:
---   1, 'Der Herr der Ringe', 'J.R.R. Tolkien', '978-3608939791', 1954
---   2, 'Harry Potter 1', 'J.K. Rowling', '978-3551551679', 1997
---   3, 'Die Verwandlung', 'Franz Kafka', '978-3150099007', 1915
---   4, '1984', 'George Orwell', '978-3548234106', 1949
+--   1, 'Der Herr der Ringe', 'J.R.R. Tolkien', 'Klett-Cotta', '978-3608939791', 1954
+--   2, 'Harry Potter 1', 'J.K. Rowling', 'Carlsen', '978-3551551679', 1997
+--   3, 'Die Verwandlung', 'Franz Kafka', 'Reclam', '978-3150099007', 1915
+--   4, '1984', 'George Orwell', 'Ullstein', '978-3548234106', 1949
+--
+-- MITARBEITER:
+--   1, 'Anna Ausleiher', 'leiht aus'
+--   2, 'Bernd Rückgeber', 'nimmt zurück'
+--
+-- EXEMPLARE:
+--   Jeweils 2 Exemplare pro Buch
 --
 -- AUSLEIHEN:
 --   Max hat "Der Herr der Ringe" am '2024-01-10' für 14 Tage ausgeliehen,
---   zurückgegeben am '2024-01-24'
+--   zurückgegeben am '2024-01-24' (Mitarbeiter 1 leiht aus, Mitarbeiter 2 nimmt zurück)
 --
 --   Max hat "Harry Potter 1" am '2024-02-01' für 10 Tage ausgeliehen,
---   noch nicht zurückgegeben (rueckgabe_datum = NULL)
+--   noch nicht zurückgegeben (Mitarbeiter 1 leiht aus)
 --
 --   Maria hat "1984" am '2024-01-15' für 7 Tage ausgeliehen,
 --   zurückgegeben am '2024-01-22'
@@ -167,29 +238,41 @@ CREATE INDEX idx_ausleihe_rueckgabe_null ON ausleihe(rueckgabe_datum);
 --
 -- DEIN CODE HIER:
 -- Leser einfügen
-INSERT INTO leser (id, name, email, registriert_am) VALUES
+INSERT INTO leser (id, name, email, mitglied_seit) VALUES
     (1, 'Max Mustermann', 'max@email.de', '2023-01-15'),
     (2, 'Maria Musterfrau', 'maria@email.de', '2023-03-20'),
     (3, 'Peter Schmidt', 'peter@email.de', '2024-01-10');
 
+-- Mitarbeiter einfügen
+INSERT INTO mitarbeiter (id, name, taetigkeit) VALUES
+    (1, 'Anna Ausleiher', 'leiht aus'),
+    (2, 'Bernd Rückgeber', 'nimmt zurück');
+
 -- Bücher einfügen
-INSERT INTO buch (id, title, autor, isbn, erscheinungsjahr) VALUES
-    (1, 'Der Herr der Ringe', 'J.R.R. Tolkien', '978-3608939791', 1954),
-    (2, 'Harry Potter 1', 'J.K. Rowling', '978-3551551679', 1997),
-    (3, 'Die Verwandlung', 'Franz Kafka', '978-3150099007', 1915),
-    (4, '1984', 'George Orwell', '978-3548234106', 1949);
+INSERT INTO buch (id, titel, autor, verlag, isbn, erscheinungsjahr) VALUES
+    (1, 'Der Herr der Ringe', 'J.R.R. Tolkien', 'Klett-Cotta', '978-3608939791', 1954),
+    (2, 'Harry Potter 1', 'J.K. Rowling', 'Carlsen', '978-3551551679', 1997),
+    (3, 'Die Verwandlung', 'Franz Kafka', 'Reclam', '978-3150099007', 1915),
+    (4, '1984', 'George Orwell', 'Ullstein', '978-3548234106', 1949);
+
+-- Exemplare einfügen (jeweils 2 Exemplare pro Buch)
+INSERT INTO exemplar (id, buch_id, standort, status) VALUES
+    (1, 1, 'Regal A1', 'ausgeliehen'),
+    (2, 1, 'Regal A1', 'verfuegbar'),
+    (3, 2, 'Regal B2', 'ausgeliehen'),
+    (4, 2, 'Regal B2', 'verfuegbar'),
+    (5, 3, 'Regal C1', 'verfuegbar'),
+    (6, 3, 'Regal C1', 'ausgeliehen'),
+    (7, 4, 'Regal D3', 'verfuegbar'),
+    (8, 4, 'Regal D3', 'verfuegbar');
 
 -- Ausleihen einfügen
-INSERT INTO ausleihe (leser_id, buch_id, ausleih_datum, rueckgabe_datum, anzahl_tage) VALUES
-    (1, 1, '2024-01-10', '2024-01-24', 14),
-    
-    (1, 2, '2024-02-01', NULL, 10),
-    
-    (2, 4, '2024-01-15', '2024-01-22', 7),
-    
-    (2, 1, '2024-02-05', NULL, 21),
-    
-    (3, 3, '2024-01-20', '2024-01-25', 5);
+INSERT INTO ausleihe (leser_id, buch_id, exemplar_id, ausleih_datum, rueckgabe_datum, anzahl_tage, mitarbeiter_ausleihe, mitarbeiter_retoure) VALUES
+    (1, 1, 1, '2024-01-10', '2024-01-24', 14, 1, 2),
+    (1, 2, 3, '2024-02-01', NULL, 10, 1, NULL),
+    (2, 4, 7, '2024-01-15', '2024-01-22', 7, 1, 2),
+    (2, 1, 2, '2024-02-05', NULL, 21, 1, NULL),
+    (3, 3, 6, '2024-01-20', '2024-01-25', 5, 1, 2);
 
 
 -- ============================================================================
@@ -210,10 +293,10 @@ INSERT INTO ausleihe (leser_id, buch_id, ausleih_datum, rueckgabe_datum, anzahl_
 --    (Hinweis: zähle alle Ausleihen pro Leser)
 --
 -- DEIN CODE HIER:
-a)
+
 SELECT 
     l.name AS leser_name,
-    b.title AS buch_title,
+    b.titel AS buch_titel,
     a.ausleih_datum,
     a.rueckgabe_datum,
     a.anzahl_tage
@@ -222,9 +305,8 @@ JOIN leser l ON a.leser_id = l.id
 JOIN buch b ON a.buch_id = b.id
 ORDER BY a.ausleih_datum DESC;
 
-b)
 SELECT 
-    b.title AS buch_title,
+    b.titel AS buch_titel,
     l.name AS leser_name,
     a.ausleih_datum AS seit_wann_ausgeliehen
 FROM ausleihe a
@@ -232,16 +314,14 @@ JOIN leser l ON a.leser_id = l.id
 JOIN buch b ON a.buch_id = b.id
 WHERE a.rueckgabe_datum IS NULL;
 
-c)
 SELECT 
-    b.title AS buch_title,
+    b.titel AS buch_titel,
     COUNT(*) AS anzahl_ausleihen
 FROM buch b
 LEFT JOIN ausleihe a ON b.id = a.buch_id
-GROUP BY b.id, b.title
+GROUP BY b.id, b.titel
 ORDER BY anzahl_ausleihen DESC;
 
-d)
 SELECT 
     l.name AS leser_name,
     COUNT(*) AS anzahl_ausleihen
@@ -262,7 +342,7 @@ LIMIT 1;
 CREATE VIEW aktuelle_ausleihen AS
 SELECT 
     l.name AS leser_name,
-    b.title AS buch_title,
+    b.titel AS buch_titel,
     a.ausleih_datum
 FROM ausleihe a
 JOIN leser l ON a.leser_id = l.id
