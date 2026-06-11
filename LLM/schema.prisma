@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+  runtime  = "deno"
+}
+
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "./ERD.md"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Language {
+  id           Int     @id @default(autoincrement())
+  bcp47Code    String  @unique
+  posixCode    String  @unique
+  iso6393Code  String  @unique
+  dirName      String  @unique
+  englishName  String  @unique
+  whisperCode  String?
+
+  languageProficiencies LanguageProficiency[]
+  votes                 Vote[]
+}
+
+model MasterString {
+  id   Int    @id @default(autoincrement())
+  text String @unique
+
+  votes Vote[]
+}
+
+model LLM {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  languageProficiencies LanguageProficiency[]
+  votes                 Vote[]
+}
+
+model LanguageProficiency {
+  id         Int @id @default(autoincrement())
+  level      Int
+  llmId      Int
+  languageId Int
+
+  llm      LLM      @relation(fields: [llmId], references: [id], onDelete: Cascade)
+  language Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+
+  @@unique([llmId, languageId])
+  /// Ermöglicht schnelle Suche nach der Selbsteinschätzung eines bestimmten LLM-Sprach-Paars
+  @@index([llmId, languageId])
+}
+
+model Vote {
+  id             Int      @id @default(autoincrement())
+  translatedText String
+  submittedAt    DateTime @default(now())
+  llmId          Int
+  masterStringId Int
+  languageId     Int
+
+  llm          LLM          @relation(fields: [llmId], references: [id], onDelete: Cascade)
+  masterString MasterString @relation(fields: [masterStringId], references: [id], onDelete: Cascade)
+  language     Language     @relation(fields: [languageId], references: [id], onDelete: Cascade)
+
+  @@unique([llmId, masterStringId, languageId, translatedText])
+  /// Ermöglicht schnelle Suche aller Votes für eine bestimmte Zielsprache
+  @@index([languageId])
+  /// Ermöglicht schnelle Suche aller Votes eines bestimmten LLMs
+  @@index([llmId])
+}

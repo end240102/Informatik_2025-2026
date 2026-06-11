@@ -1,0 +1,13 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "deno run --watch main.ts",
+    "prisma:validate": "deno run -A npm:prisma validate",
+    "prisma:generate": "deno run -A npm:prisma generate"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "prisma": "npm:prisma",
+    "prisma-erd-generator": "npm:prisma-erd-generator@^2.1.0"
+  }
+}
